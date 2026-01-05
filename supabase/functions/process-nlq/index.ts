@@ -86,11 +86,15 @@ serve(async (req) => {
       });
     }
 
-    // For general queries, use Azure OpenAI
+    // For general queries, use Azure OpenAI to generate SQL and get insights
     const AZURE_OPENAI_ENDPOINT = Deno.env.get('AZURE_OPENAI_ENDPOINT');
     const AZURE_OPENAI_API_KEY = Deno.env.get('AZURE_OPENAI_API_KEY');
     const AZURE_OPENAI_DEPLOYMENT_NAME = Deno.env.get('AZURE_OPENAI_DEPLOYMENT_NAME') || 'gpt-4o';
     const AZURE_OPENAI_API_VERSION = Deno.env.get('AZURE_OPENAI_API_VERSION') || '2024-02-01';
+    
+    // Get Snowflake config for context
+    const SNOWFLAKE_DATABASE = Deno.env.get('SNOWFLAKE_DATABASE') || 'financial_demo';
+    const SNOWFLAKE_SCHEMA = Deno.env.get('SNOWFLAKE_SCHEMA') || 'public';
 
     if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
       console.error('Azure OpenAI credentials not configured');
@@ -105,30 +109,191 @@ serve(async (req) => {
       });
     }
 
-    // Build system prompt for financial/data analysis
-    systemPrompt = `You are an intelligent financial and data analytics assistant for SCODAC, a Clinical Decision Support System platform. 
+    // Detect if query is asking for data that requires SQL
+    const dataKeywords = ['show', 'list', 'get', 'find', 'how many', 'count', 'total', 'sum', 'average', 
+                          'top', 'bottom', 'highest', 'lowest', 'transactions', 'records', 'data',
+                          'revenue', 'sales', 'expenses', 'profit', 'balance', 'customers', 'orders',
+                          'patients', 'claims', 'payments', 'vendors', 'amount'];
+    
+    const isDataQuery = dataKeywords.some(keyword => queryLower.includes(keyword));
+
+    // Schema context for SQL generation
+    const schemaContext = `
+You have access to a Snowflake data warehouse with the following schema:
+
+Database: ${SNOWFLAKE_DATABASE}
+Schema: ${SNOWFLAKE_SCHEMA}
+
+Common tables available:
+- TRANSACTIONS (transaction_id, date, amount, type, category, description, account_id)
+- CUSTOMERS (customer_id, name, email, phone, address, created_at)
+- ORDERS (order_id, customer_id, order_date, total_amount, status)
+- INVOICES (invoice_id, vendor_id, amount, due_date, status, paid_date)
+- VENDORS (vendor_id, name, contact_email, payment_terms)
+- PATIENTS (patient_id, name, date_of_birth, admission_date, diagnosis)
+- CLAIMS (claim_id, patient_id, claim_date, amount, status, payer)
+- PAYMENTS (payment_id, claim_id, payment_date, amount, method)
+
+When generating SQL:
+- Use proper Snowflake SQL syntax
+- Always use fully qualified table names: ${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.TABLE_NAME
+- Limit results to 100 rows unless user specifies otherwise
+- Use appropriate aggregations and groupings
+- Format dates properly
+`;
+
+    let sqlQuery = '';
+    let queryResults: any[] = [];
+    let aiSummary = '';
+
+    if (isDataQuery) {
+      // Step 1: Generate SQL using Azure OpenAI
+      console.log('Generating SQL query with Azure OpenAI...');
+      
+      const sqlSystemPrompt = `You are a SQL expert for Snowflake data warehouse. Generate ONLY the SQL query, no explanations.
+${schemaContext}
+
+Rules:
+- Return ONLY the SQL query, nothing else
+- Do not include markdown code blocks
+- Ensure the query is valid Snowflake SQL
+- Always limit to 100 rows unless specified
+- Use proper date formatting`;
+
+      const sqlApiUrl = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
+      
+      const sqlResponse = await fetch(sqlApiUrl, {
+        method: 'POST',
+        headers: {
+          'api-key': AZURE_OPENAI_API_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: sqlSystemPrompt },
+            { role: 'user', content: `Generate a SQL query for: ${query}` }
+          ],
+          max_tokens: 500,
+          temperature: 0,
+        }),
+      });
+
+      if (sqlResponse.ok) {
+        const sqlData = await sqlResponse.json();
+        sqlQuery = sqlData.choices?.[0]?.message?.content?.trim() || '';
+        
+        // Clean up SQL if it has markdown
+        sqlQuery = sqlQuery.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        console.log('Generated SQL:', sqlQuery);
+
+        // Step 2: Execute SQL against Snowflake
+        if (sqlQuery) {
+          try {
+            const SNOWFLAKE_ACCOUNT = Deno.env.get('SNOWFLAKE_ACCOUNT');
+            const SNOWFLAKE_USER = Deno.env.get('SNOWFLAKE_USER');
+            const SNOWFLAKE_PASSWORD = Deno.env.get('SNOWFLAKE_PASSWORD');
+            const SNOWFLAKE_WAREHOUSE = Deno.env.get('SNOWFLAKE_WAREHOUSE');
+
+            if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PASSWORD) {
+              console.log('Executing query against Snowflake...');
+              
+              const baseUrl = `https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com`;
+              
+              // Try session-based authentication
+              const loginResponse = await fetch(`${baseUrl}/session/v1/login-request`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                  data: {
+                    ACCOUNT_NAME: SNOWFLAKE_ACCOUNT,
+                    LOGIN_NAME: SNOWFLAKE_USER,
+                    PASSWORD: SNOWFLAKE_PASSWORD,
+                    CLIENT_APP_ID: 'SCODAC_NLQ',
+                    CLIENT_APP_VERSION: '1.0.0',
+                  },
+                }),
+              });
+
+              if (loginResponse.ok) {
+                const loginData = await loginResponse.json();
+                const sessionToken = loginData.data?.token;
+
+                if (sessionToken) {
+                  const queryResponse = await fetch(`${baseUrl}/queries/v1/query-request`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Snowflake Token="${sessionToken}"`,
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      sqlText: sqlQuery,
+                      asyncExec: false,
+                      sequenceId: 1,
+                    }),
+                  });
+
+                  if (queryResponse.ok) {
+                    const queryData = await queryResponse.json();
+                    const columns = queryData.data?.rowtype?.map((col: any) => col.name) || [];
+                    const rows = queryData.data?.rowset || [];
+                    
+                    queryResults = rows.map((row: any[]) => {
+                      const obj: Record<string, any> = {};
+                      columns.forEach((col: string, idx: number) => {
+                        obj[col] = row[idx];
+                      });
+                      return obj;
+                    });
+
+                    console.log(`Snowflake returned ${queryResults.length} rows`);
+                  } else {
+                    console.log('Snowflake query failed, using mock data');
+                  }
+                }
+              } else {
+                console.log('Snowflake login failed, will generate summary without data');
+              }
+            }
+          } catch (snowflakeError) {
+            console.error('Snowflake error:', snowflakeError);
+          }
+        }
+      }
+    }
+
+    // Step 3: Generate natural language summary with Azure OpenAI
+    console.log('Generating AI summary...');
+    
+    const summarySystemPrompt = `You are an intelligent financial and data analytics assistant for SCODAC.
 
 Your capabilities include:
-- Answering questions about financial data, transactions, and analytics
-- Providing insights on accounts payable and accounts receivable
+- Answering questions about financial data and analytics
+- Providing insights on accounts payable and receivable
 - Explaining financial metrics and trends
-- Helping users understand their data and dashboards
-- Generating SQL queries for Snowflake data warehouse when appropriate
+- Summarizing query results in a clear, actionable way
 
 When responding:
 - Be concise but informative
 - Use **bold** for important terms and numbers
 - Format numbers with appropriate separators (e.g., $1,234,567.89)
-- If the query relates to specific data, explain what data sources would be relevant
 - Provide actionable insights when possible
+- If data was retrieved, summarize the key findings`;
 
-Current context: User is working with financial and healthcare data systems including Snowflake data warehouse and Power BI dashboards.`;
+    let userMessage = query;
+    if (queryResults.length > 0) {
+      userMessage = `User query: ${query}\n\nData retrieved (${queryResults.length} rows):\n${JSON.stringify(queryResults.slice(0, 10), null, 2)}\n\nPlease summarize these results for the user.`;
+    } else if (sqlQuery) {
+      userMessage = `User query: ${query}\n\nI generated this SQL query: ${sqlQuery}\n\nHowever, I couldn't connect to the database at this time. Please explain what data this query would retrieve and how it would answer the user's question.`;
+    }
 
-    const apiUrl = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
+    const summaryApiUrl = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
     
-    console.log('Calling Azure OpenAI:', apiUrl);
-
-    const response = await fetch(apiUrl, {
+    const summaryResponse = await fetch(summaryApiUrl, {
       method: 'POST',
       headers: {
         'api-key': AZURE_OPENAI_API_KEY,
@@ -136,40 +301,40 @@ Current context: User is working with financial and healthcare data systems incl
       },
       body: JSON.stringify({
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: query }
+          { role: 'system', content: summarySystemPrompt },
+          { role: 'user', content: userMessage }
         ],
         max_tokens: 1000,
         temperature: 0.7,
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Azure OpenAI error:', response.status, errorText);
+    if (!summaryResponse.ok) {
+      const errorText = await summaryResponse.text();
+      console.error('Azure OpenAI error:', summaryResponse.status, errorText);
       return new Response(JSON.stringify({ 
-        error: `Azure OpenAI error: ${response.status}`,
+        error: `Azure OpenAI error: ${summaryResponse.status}`,
         query,
-        summary: "I apologize, but I encountered an error while processing your query. Please try again or contact support if the issue persists.",
-        sql: '',
-        results: []
+        summary: "I apologize, but I encountered an error while processing your query. Please try again.",
+        sql: sqlQuery,
+        results: queryResults
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const data = await response.json();
-    const aiResponse = data.choices?.[0]?.message?.content || 'Unable to generate response.';
+    const summaryData = await summaryResponse.json();
+    aiSummary = summaryData.choices?.[0]?.message?.content || 'Unable to generate summary.';
 
     console.log('Azure OpenAI response received successfully');
 
     return new Response(JSON.stringify({
       query,
       message: 'snowflake_query',
-      summary: aiResponse,
-      sql: '',
-      results: []
+      summary: aiSummary,
+      sql: sqlQuery,
+      results: queryResults
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
