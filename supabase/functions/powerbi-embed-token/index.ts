@@ -1,10 +1,48 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Authentication helper - validates request authorization
+async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; userEmail?: string; error?: string }> {
+  const authHeader = req.headers.get('authorization');
+  const customAuthToken = req.headers.get('x-session-token');
+  
+  if (!authHeader) {
+    return { authenticated: false, error: 'Missing authorization header' };
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  
+  // Check if this is the Supabase anon key
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  if (token !== supabaseAnonKey) {
+    // Try validating as a Supabase user JWT
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return { authenticated: false, error: 'Invalid authorization token' };
+    }
+    
+    return { authenticated: true, userEmail: user.email };
+  }
+  
+  // If using anon key, require custom session token
+  if (!customAuthToken) {
+    return { authenticated: false, error: 'Session authentication required' };
+  }
+  
+  return { authenticated: true, userEmail: 'authenticated-user' };
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -13,6 +51,19 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Authenticate the request
+    const authResult = await authenticateRequest(req);
+    
+    if (!authResult.authenticated) {
+      console.error('Authentication failed:', authResult.error);
+      return new Response(
+        JSON.stringify({ error: authResult.error || 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log('PowerBI: Authenticated user:', authResult.userEmail);
+
     const { reportId, groupId } = await req.json();
     
     if (!reportId) {
