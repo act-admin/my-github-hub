@@ -214,18 +214,23 @@ MEDICAL_RECORDS - Contains patient medical records:
   - TREATMENT_COST (NUMBER) - Cost of the treatment
   - NOTES (VARCHAR) - Additional notes
 
-FINANCIAL_TRANSACTIONS - Contains financial transaction data
+FINANCIAL_TRANSACTIONS - Contains financial transaction data:
+  - TRANSACTION_ID (NUMBER) - Unique transaction identifier
+  - TRANSACTION_DATE (DATE) - Date of the transaction
+  - AMOUNT (NUMBER) - Transaction amount
+  - CATEGORY (VARCHAR) - Transaction category
+  - DESCRIPTION (VARCHAR) - Transaction description
+
 FINANCIAL_REPORTS - Contains financial report data
 MEDICAL_REPORTS - Contains medical reports and analytics
 
 When generating SQL:
 - Use proper Snowflake SQL syntax
 - Always use fully qualified table names: FINANCIAL_DEMO.PUBLIC.TABLE_NAME
-- Use the correct column names as specified above
+- Use the EXACT column names as specified above
+- For medical data: use VISIT_DATE for dates, TREATMENT_COST for costs, DIAGNOSIS for conditions
+- For financial data: use TRANSACTION_DATE for dates, AMOUNT for values, CATEGORY for types
 - Limit results to 100 rows unless user specifies otherwise
-- Use appropriate aggregations and groupings
-- For date filtering use VISIT_DATE column
-- For costs use TREATMENT_COST column
 `;
 
     let sqlQuery = '';
