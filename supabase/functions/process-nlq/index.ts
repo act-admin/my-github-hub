@@ -117,29 +117,26 @@ serve(async (req) => {
     
     const isDataQuery = dataKeywords.some(keyword => queryLower.includes(keyword));
 
-    // Schema context for SQL generation
+    // Schema context for SQL generation - using actual FINANCIAL_DEMO.PUBLIC tables
     const schemaContext = `
 You have access to a Snowflake data warehouse with the following schema:
 
-Database: ${SNOWFLAKE_DATABASE}
-Schema: ${SNOWFLAKE_SCHEMA}
+Database: FINANCIAL_DEMO
+Schema: PUBLIC
 
-Common tables available:
-- TRANSACTIONS (transaction_id, date, amount, type, category, description, account_id)
-- CUSTOMERS (customer_id, name, email, phone, address, created_at)
-- ORDERS (order_id, customer_id, order_date, total_amount, status)
-- INVOICES (invoice_id, vendor_id, amount, due_date, status, paid_date)
-- VENDORS (vendor_id, name, contact_email, payment_terms)
-- PATIENTS (patient_id, name, date_of_birth, admission_date, diagnosis)
-- CLAIMS (claim_id, patient_id, claim_date, amount, status, payer)
-- PAYMENTS (payment_id, claim_id, payment_date, amount, method)
+Tables available:
+- FINANCIAL_REPORTS - Contains financial report data (reports, summaries, financial statements)
+- FINANCIAL_TRANSACTIONS - Contains all financial transactions (transaction records, amounts, dates, types)
+- MEDICAL_RECORDS - Contains patient medical records (patient data, treatments, diagnoses)
+- MEDICAL_REPORTS - Contains medical reports and analytics (healthcare metrics, outcomes)
 
 When generating SQL:
 - Use proper Snowflake SQL syntax
-- Always use fully qualified table names: ${SNOWFLAKE_DATABASE}.${SNOWFLAKE_SCHEMA}.TABLE_NAME
+- Always use fully qualified table names: FINANCIAL_DEMO.PUBLIC.TABLE_NAME
 - Limit results to 100 rows unless user specifies otherwise
 - Use appropriate aggregations and groupings
 - Format dates properly
+- Use SELECT * to explore table structure if unsure about columns
 `;
 
     let sqlQuery = '';
