@@ -35,7 +35,6 @@ export default function PowerBIEmbedServerToken({
         
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const sessionToken = sessionStorage.getItem("authToken");
         
         const response = await fetch(`${supabaseUrl}/functions/v1/powerbi-embed-token`, {
           method: "POST",
@@ -43,7 +42,6 @@ export default function PowerBIEmbedServerToken({
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${supabaseKey}`,
-            "x-session-token": sessionToken || "",
           },
         });
 

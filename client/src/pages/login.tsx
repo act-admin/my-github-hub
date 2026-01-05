@@ -20,49 +20,28 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      // Call server-side authentication endpoint
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Store session token securely
-        if (data.token) {
-          sessionStorage.setItem("authToken", data.token);
-        }
+    // Simulate API call delay
+    setTimeout(() => {
+      if (email === "admin@scodac.com" && password === "Scodac@ai$123") {
+        // Store login state
         localStorage.setItem("isAuthenticated", "true");
         localStorage.setItem("userEmail", email);
         
         toast({
           title: "Login Successful",
-          description: "Welcome back to SCODAC!",
+          description: "Welcome back to Billion Dollar Blank Screen!",
         });
         
         setLocation("/dashboard");
       } else {
         toast({
           title: "Login Failed",
-          description: data.message || "Invalid email or password. Please try again.",
+          description: "Invalid email or password. Please try again.",
           variant: "destructive",
         });
       }
-    } catch (error) {
-      toast({
-        title: "Login Failed",
-        description: "Unable to connect to authentication service.",
-        variant: "destructive",
-      });
-    } finally {
       setIsLoading(false);
-    }
+    }, 800);
   };
 
   return (

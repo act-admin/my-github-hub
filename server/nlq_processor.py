@@ -50,68 +50,25 @@ def extract_year_from_nlq(nlq: str) -> int:
 
 def validate_sql_security(sql: str, nlq: str) -> tuple[bool, str]:
     """
-    CRITICAL SECURITY: Comprehensive SQL validation for safety and compliance
+    CRITICAL SECURITY: Validate SQL for safety and compliance
     Returns (is_valid, error_message)
     """
     sql_upper = sql.upper().strip()
-    
-    # 0. BASIC INPUT VALIDATION
-    if not sql or len(sql.strip()) == 0:
-        return False, "SECURITY ERROR: Empty query not allowed"
-    
-    if len(sql) > 5000:
-        return False, "SECURITY ERROR: Query too long (max 5000 characters)"
 
     # 1. ENFORCE SELECT-ONLY QUERIES
     if not sql_upper.startswith('SELECT'):
         return False, "SECURITY ERROR: Only SELECT queries are allowed"
 
-    # 2. BLOCK DANGEROUS SQL OPERATIONS (word boundary check)
+    # 2. BLOCK DANGEROUS SQL OPERATIONS
     dangerous_keywords = [
         'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE',
-        'EXEC', 'EXECUTE', 'GRANT', 'REVOKE', 'MERGE', 'CALL', 'COPY',
-        'LOAD', 'UNLOAD', 'PUT', 'GET', 'REMOVE', 'STAGE'
+        'EXEC', 'EXECUTE'
     ]
     for keyword in dangerous_keywords:
-        # Use word boundary regex for accurate detection
-        pattern = r'\b' + keyword + r'\b'
-        if re.search(pattern, sql, re.IGNORECASE):
+        if keyword in sql_upper:
             return False, f"SECURITY ERROR: {keyword} operations are not allowed"
 
-    # 3. BLOCK SQL INJECTION PATTERNS
-    injection_patterns = [
-        (r'--', "SQL comment injection"),
-        (r'/\*', "Block comment injection"),
-        (r'\*/', "Block comment injection"),
-        (r';\s*SELECT', "Chained query injection"),
-        (r';\s*INSERT', "Chained query injection"),
-        (r';\s*UPDATE', "Chained query injection"),
-        (r';\s*DELETE', "Chained query injection"),
-        (r';\s*DROP', "Chained query injection"),
-        (r'\bOR\s+1\s*=\s*1', "OR 1=1 injection"),
-        (r'\bAND\s+1\s*=\s*1', "AND 1=1 injection"),
-        (r'\bOR\s+\'1\'\s*=\s*\'1\'', "OR '1'='1' injection"),
-        (r'\bOR\s+"1"\s*=\s*"1"', 'OR "1"="1" injection'),
-        (r'UNION\s+ALL\s+SELECT', "UNION ALL injection"),
-        (r'\bSLEEP\s*\(', "Time-based injection"),
-        (r'\bBENCHMARK\s*\(', "Time-based injection"),
-        (r'\bWAITFOR\s+DELAY', "Time-based injection"),
-        (r'\bPG_SLEEP\s*\(', "Time-based injection"),
-        (r'INFORMATION_SCHEMA', "Schema enumeration"),
-        (r'SYS\.', "System table access"),
-        (r'SYSCOLUMNS', "System table access"),
-        (r'SYSOBJECTS', "System table access"),
-        (r'@@VERSION', "Version enumeration"),
-        (r'@@SERVERNAME', "Server enumeration"),
-        (r'\bXP_', "Extended procedure call"),
-        (r'\bSP_', "Stored procedure call"),
-    ]
-    
-    for pattern, description in injection_patterns:
-        if re.search(pattern, sql, re.IGNORECASE):
-            return False, f"SECURITY ERROR: {description} detected"
-
-    # 4. ENFORCE WHITELISTED TABLES ONLY
+    # 3. ENFORCE WHITELISTED TABLES ONLY
     allowed_tables = ['FINANCIAL_TRANSACTIONS', 'FINANCIAL_REPORTS', 'MEDICAL_RECORDS', 'MEDICAL_REPORTS']
     sql_has_table = False
     for table in allowed_tables:
@@ -122,26 +79,7 @@ def validate_sql_security(sql: str, nlq: str) -> tuple[bool, str]:
     if not sql_has_table:
         return False, f"SECURITY ERROR: Query must use whitelisted tables: {allowed_tables}"
 
-    # 5. LIMIT QUERY COMPLEXITY
-    # Count nested parentheses depth
-    max_depth = 0
-    current_depth = 0
-    for char in sql:
-        if char == '(':
-            current_depth += 1
-            max_depth = max(max_depth, current_depth)
-        elif char == ')':
-            current_depth -= 1
-    
-    if max_depth > 5:
-        return False, "SECURITY ERROR: Query too complex (max 5 levels of nesting)"
-    
-    # Count subqueries
-    subquery_count = len(re.findall(r'\(\s*SELECT', sql, re.IGNORECASE))
-    if subquery_count > 3:
-        return False, "SECURITY ERROR: Too many subqueries (max 3 allowed)"
-
-    # 6. ENSURE YEAR CONSTRAINTS for FINANCIAL_TRANSACTIONS and MEDICAL_RECORDS
+    # 4. ENSURE YEAR CONSTRAINTS for FINANCIAL_TRANSACTIONS and MEDICAL_RECORDS
     if 'FINANCIAL_TRANSACTIONS' in sql_upper or 'MEDICAL_RECORDS' in sql_upper:
         extracted_year = extract_year_from_nlq(nlq)
 

@@ -630,17 +630,15 @@ const NLQInterface: React.FC<NLQInterfaceProps> = ({
         };
       }
 
-      // Make API call to edge function with authentication
+      // Make API call to edge function
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const sessionToken = sessionStorage.getItem("authToken");
       
       const response = await fetch(`${supabaseUrl}/functions/v1/process-nlq`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseKey}`,
-          'x-session-token': sessionToken || '',
         },
         body: JSON.stringify({ query }),
       });

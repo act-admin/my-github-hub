@@ -1,51 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Authentication helper - validates request authorization
-// Supports both Supabase JWT and custom session tokens
-async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; userEmail?: string; error?: string }> {
-  const authHeader = req.headers.get('authorization');
-  const customAuthToken = req.headers.get('x-session-token');
-  
-  if (!authHeader) {
-    return { authenticated: false, error: 'Missing authorization header' };
-  }
-
-  const token = authHeader.replace('Bearer ', '');
-  
-  // Check if this is the Supabase anon key (required for edge function access)
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (token !== supabaseAnonKey) {
-    // Try validating as a Supabase user JWT
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    
-    if (error || !user) {
-      return { authenticated: false, error: 'Invalid authorization token' };
-    }
-    
-    return { authenticated: true, userEmail: user.email };
-  }
-  
-  // If using anon key, require custom session token for additional security
-  if (!customAuthToken) {
-    return { authenticated: false, error: 'Session authentication required' };
-  }
-  
-  // For anon key requests, we trust the session if present
-  // In production, validate session token against your auth server
-  return { authenticated: true, userEmail: 'authenticated-user' };
-}
 
 // Base64URL encode function
 function base64urlEncode(data: Uint8Array): string {
@@ -135,19 +94,6 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Authenticate the request
-    const authResult = await authenticateRequest(req);
-    
-    if (!authResult.authenticated) {
-      console.error('Authentication failed:', authResult.error);
-      return new Response(
-        JSON.stringify({ error: authResult.error || 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log('NLQ: Authenticated user:', authResult.userEmail);
-
     const { query } = await req.json();
     
     if (!query) {
@@ -330,49 +276,7 @@ Rules:
         // Clean up SQL if it has markdown
         sqlQuery = sqlQuery.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
         
-        console.log('Generated SQL (validating...)');
-
-        // SECURITY: Validate the generated SQL before execution
-        const sqlUpper = sqlQuery.toUpperCase().trim();
-        
-        // 1. Only allow SELECT statements
-        if (!sqlUpper.startsWith('SELECT')) {
-          console.error('SQL validation failed: Only SELECT queries allowed');
-          sqlQuery = ''; // Clear invalid query
-        }
-        
-        // 2. Block dangerous operations
-        const dangerousKeywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE', 'EXEC', 'EXECUTE', 'GRANT', 'REVOKE'];
-        for (const keyword of dangerousKeywords) {
-          const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-          if (regex.test(sqlQuery)) {
-            console.error(`SQL validation failed: ${keyword} operation blocked`);
-            sqlQuery = '';
-            break;
-          }
-        }
-        
-        // 3. Enforce table whitelist
-        const allowedTables = ['FINANCIAL_TRANSACTIONS', 'FINANCIAL_REPORTS', 'MEDICAL_RECORDS', 'MEDICAL_REPORTS'];
-        if (sqlQuery && !allowedTables.some(table => sqlUpper.includes(table))) {
-          console.error('SQL validation failed: Query must use approved tables');
-          sqlQuery = '';
-        }
-        
-        // 4. Block SQL injection patterns
-        const injectionPatterns = [/--/, /\/\*/, /;\s*SELECT/i, /\bOR\s+1\s*=\s*1/i, /\bAND\s+1\s*=\s*1/i];
-        for (const pattern of injectionPatterns) {
-          if (pattern.test(sqlQuery)) {
-            console.error('SQL validation failed: Injection pattern detected');
-            sqlQuery = '';
-            break;
-          }
-        }
-        
-        // 5. Add LIMIT if missing
-        if (sqlQuery && !sqlUpper.includes('LIMIT')) {
-          sqlQuery = sqlQuery.replace(/;?\s*$/, ' LIMIT 100');
-        }
+        console.log('Generated SQL:', sqlQuery);
 
         // Step 2: Execute SQL against Snowflake using JWT key-pair auth
         if (sqlQuery) {
@@ -385,7 +289,8 @@ Rules:
 
             if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PRIVATE_KEY && SNOWFLAKE_PUBLIC_KEY) {
               console.log('Executing query against Snowflake SQL API with key-pair auth...');
-              // Don't log sensitive credentials
+              console.log('Account:', SNOWFLAKE_ACCOUNT);
+              console.log('User:', SNOWFLAKE_USER);
               
               try {
                 // Create JWT token for authentication

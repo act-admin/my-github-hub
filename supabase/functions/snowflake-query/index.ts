@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,99 +19,6 @@ interface SnowflakeResponse {
   statementStatusUrl?: string;
 }
 
-// Authentication helper - validates request authorization
-async function authenticateRequest(req: Request): Promise<{ authenticated: boolean; userEmail?: string; error?: string }> {
-  const authHeader = req.headers.get('authorization');
-  const customAuthToken = req.headers.get('x-session-token');
-  
-  if (!authHeader) {
-    return { authenticated: false, error: 'Missing authorization header' };
-  }
-
-  const token = authHeader.replace('Bearer ', '');
-  
-  // Check if this is the Supabase anon key
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (token !== supabaseAnonKey) {
-    // Try validating as a Supabase user JWT
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    
-    if (error || !user) {
-      return { authenticated: false, error: 'Invalid authorization token' };
-    }
-    
-    return { authenticated: true, userEmail: user.email };
-  }
-  
-  // If using anon key, require custom session token
-  if (!customAuthToken) {
-    return { authenticated: false, error: 'Session authentication required' };
-  }
-  
-  return { authenticated: true, userEmail: 'authenticated-user' };
-}
-
-// SECURITY: SQL validation function
-function validateSqlSecurity(sql: string): { valid: boolean; error?: string } {
-  const sqlUpper = sql.toUpperCase().trim();
-  
-  // 1. Only allow SELECT statements
-  if (!sqlUpper.startsWith('SELECT')) {
-    return { valid: false, error: 'Only SELECT queries are allowed' };
-  }
-  
-  // 2. Block dangerous operations
-  const dangerousKeywords = [
-    'INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE',
-    'EXEC', 'EXECUTE', 'GRANT', 'REVOKE', 'MERGE', 'CALL'
-  ];
-  
-  for (const keyword of dangerousKeywords) {
-    // Check for keyword as a word boundary (not part of another word)
-    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-    if (regex.test(sql)) {
-      return { valid: false, error: `${keyword} operations are not allowed` };
-    }
-  }
-  
-  // 3. Enforce whitelisted tables only
-  const allowedTables = ['FINANCIAL_TRANSACTIONS', 'FINANCIAL_REPORTS', 'MEDICAL_RECORDS', 'MEDICAL_REPORTS'];
-  const hasAllowedTable = allowedTables.some(table => sqlUpper.includes(table));
-  
-  if (!hasAllowedTable) {
-    return { valid: false, error: 'Query must use approved tables only' };
-  }
-  
-  // 4. Limit query complexity (no nested subqueries beyond depth 2)
-  const subqueryDepth = (sql.match(/\(/g) || []).length;
-  if (subqueryDepth > 5) {
-    return { valid: false, error: 'Query is too complex' };
-  }
-  
-  // 5. Block SQL injection patterns
-  const injectionPatterns = [
-    /--/,           // SQL comments
-    /\/\*/,         // Block comments
-    /;\s*SELECT/i,  // Chained queries
-    /UNION\s+ALL/i, // UNION attacks (allow simple UNION for legitimate use)
-    /\bOR\s+1\s*=\s*1/i,  // OR 1=1 injection
-    /\bAND\s+1\s*=\s*1/i, // AND 1=1 injection
-  ];
-  
-  for (const pattern of injectionPatterns) {
-    if (pattern.test(sql)) {
-      return { valid: false, error: 'Query contains disallowed pattern' };
-    }
-  }
-  
-  return { valid: true };
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -120,19 +26,6 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Authenticate the request
-    const authResult = await authenticateRequest(req);
-    
-    if (!authResult.authenticated) {
-      console.error('Authentication failed:', authResult.error);
-      return new Response(
-        JSON.stringify({ error: authResult.error || 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log('Snowflake: Authenticated user:', authResult.userEmail);
-
     const { sql, timeout = 60 } = await req.json();
     
     if (!sql) {
@@ -140,25 +33,6 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-    }
-
-    // SECURITY: Validate SQL before execution
-    const validation = validateSqlSecurity(sql);
-    if (!validation.valid) {
-      console.error('SQL validation failed:', validation.error);
-      return new Response(JSON.stringify({ 
-        error: 'Query validation failed',
-        details: validation.error 
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Enforce result limit
-    let safeSql = sql;
-    if (!sql.toUpperCase().includes('LIMIT')) {
-      safeSql = sql.replace(/;?\s*$/, ' LIMIT 100');
     }
 
     // Get Snowflake credentials from secrets
@@ -179,9 +53,11 @@ serve(async (req) => {
       });
     }
 
-    console.log('Snowflake: Executing validated query...');
-    // Don't log sensitive credentials
-    
+    console.log('Snowflake: Executing query...');
+    console.log('Snowflake: Account:', SNOWFLAKE_ACCOUNT);
+    console.log('Snowflake: Database:', SNOWFLAKE_DATABASE);
+    console.log('Snowflake: Schema:', SNOWFLAKE_SCHEMA);
+
     // Snowflake SQL API endpoint
     const baseUrl = `https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com`;
     const apiUrl = `${baseUrl}/api/v2/statements`;
@@ -189,7 +65,7 @@ serve(async (req) => {
     // Create Basic Auth header
     const credentials = btoa(`${SNOWFLAKE_USER}:${SNOWFLAKE_PASSWORD}`);
 
-    // Execute validated query via Snowflake SQL API
+    // Execute query via Snowflake SQL API
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -199,8 +75,8 @@ serve(async (req) => {
         'X-Snowflake-Authorization-Token-Type': 'KEYPAIR_JWT',
       },
       body: JSON.stringify({
-        statement: safeSql, // Use validated and limited SQL
-        timeout: Math.min(timeout, 60), // Enforce max timeout
+        statement: sql,
+        timeout: timeout,
         database: SNOWFLAKE_DATABASE,
         schema: SNOWFLAKE_SCHEMA,
         warehouse: SNOWFLAKE_WAREHOUSE,
@@ -259,9 +135,9 @@ serve(async (req) => {
         });
       }
 
-      console.log('Snowflake: Session obtained, executing validated query...');
+      console.log('Snowflake: Session obtained, executing query...');
 
-      // Execute validated query with session token
+      // Execute query with session token
       const queryResponse = await fetch(`${baseUrl}/queries/v1/query-request`, {
         method: 'POST',
         headers: {
@@ -270,7 +146,7 @@ serve(async (req) => {
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          sqlText: safeSql, // Use validated and limited SQL
+          sqlText: sql,
           asyncExec: false,
           sequenceId: 1,
           querySubmissionTime: Date.now(),

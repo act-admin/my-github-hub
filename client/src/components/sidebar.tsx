@@ -153,20 +153,15 @@ export default function Sidebar({ agents, connections, isConnected }: SidebarPro
         )}
       </div>
 
-      {/* Toggle Button - Enterprise Grade */}
+      {/* Toggle Button positioned on the border */}
       <Button
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
-        className="absolute -right-4 top-6 z-20 h-9 w-9 min-h-9 min-w-9 p-0 bg-gradient-to-br from-background via-background to-muted/50 border-2 border-border/50 rounded-full shadow-lg hover:shadow-xl hover:border-primary/30 hover:scale-105 active:scale-95 transition-all duration-200 ease-out flex items-center justify-center group backdrop-blur-sm"
+        className="absolute -right-4 top-6 z-10 h-4 w-4 bg-background border border-border rounded-full shadow-md hover:bg-muted transition-all duration-300 flex items-center justify-center"
         data-testid="button-sidebar-toggle"
       >
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-        {isOpen ? (
-          <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
-        ) : (
-          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors duration-200" />
-        )}
+        {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
       </Button>
     </div>
   );
