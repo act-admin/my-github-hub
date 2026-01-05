@@ -158,10 +158,10 @@ export default function Sidebar({ agents, connections, isConnected }: SidebarPro
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
-        className="absolute -right-4 top-6 z-10 h-4 w-4 bg-background border border-border rounded-full shadow-md hover:bg-muted transition-all duration-300 flex items-center justify-center"
+        className="absolute -right-4 top-6 z-10 h-8 w-8 min-h-8 min-w-8 p-0 bg-background border border-border rounded-full shadow-md hover:bg-muted transition-all duration-300 flex items-center justify-center"
         data-testid="button-sidebar-toggle"
       >
-        {isOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        {isOpen ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
       </Button>
     </div>
   );
