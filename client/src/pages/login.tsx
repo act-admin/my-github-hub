@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import scodacLogo from "@assets/ScodacLogoApproved.png";
+import aiFactoryBg from "@/assets/ai-factory-bg.png";
 import { Eye, EyeOff, Zap, Shield, BarChart3 } from "lucide-react";
 
 export default function Login() {
@@ -150,43 +151,18 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right Side - Orange Background with Content */}
-      <div className="hidden lg:flex bg-accent relative overflow-hidden items-center justify-center p-12 xl:p-16">
-        {/* AI Abstract Visual Background */}
-        <div className="absolute inset-0 opacity-10">
-          <svg className="w-full h-full" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Neural network nodes */}
-            <circle cx="200" cy="200" r="8" fill="white"/>
-            <circle cx="400" cy="150" r="6" fill="white"/>
-            <circle cx="600" cy="200" r="10" fill="white"/>
-            <circle cx="150" cy="400" r="7" fill="white"/>
-            <circle cx="350" cy="350" r="12" fill="white"/>
-            <circle cx="550" cy="380" r="8" fill="white"/>
-            <circle cx="700" cy="420" r="6" fill="white"/>
-            <circle cx="250" cy="550" r="9" fill="white"/>
-            <circle cx="450" cy="500" r="10" fill="white"/>
-            <circle cx="650" cy="580" r="7" fill="white"/>
-            <circle cx="300" cy="700" r="8" fill="white"/>
-            <circle cx="500" cy="680" r="6" fill="white"/>
-            {/* Connection lines */}
-            <line x1="200" y1="200" x2="400" y2="150" stroke="white" strokeWidth="1"/>
-            <line x1="400" y1="150" x2="600" y2="200" stroke="white" strokeWidth="1"/>
-            <line x1="200" y1="200" x2="350" y2="350" stroke="white" strokeWidth="1"/>
-            <line x1="350" y1="350" x2="550" y2="380" stroke="white" strokeWidth="1"/>
-            <line x1="150" y1="400" x2="350" y2="350" stroke="white" strokeWidth="1"/>
-            <line x1="550" y1="380" x2="700" y2="420" stroke="white" strokeWidth="1"/>
-            <line x1="250" y1="550" x2="450" y2="500" stroke="white" strokeWidth="1"/>
-            <line x1="450" y1="500" x2="650" y2="580" stroke="white" strokeWidth="1"/>
-            <line x1="350" y1="350" x2="450" y2="500" stroke="white" strokeWidth="1"/>
-            <line x1="300" y1="700" x2="500" y2="680" stroke="white" strokeWidth="1"/>
-            <line x1="250" y1="550" x2="300" y2="700" stroke="white" strokeWidth="1"/>
-          </svg>
+      {/* Right Side - Image Background with Content */}
+      <div className="hidden lg:flex relative overflow-hidden items-center justify-center p-12 xl:p-16">
+        {/* Background Image */}
+        <div className="absolute inset-0">
+          <img 
+            src={aiFactoryBg} 
+            alt="AI Factory" 
+            className="w-full h-full object-cover"
+          />
+          {/* Dark overlay for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60"></div>
         </div>
-        
-        {/* Glowing orbs */}
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-32 left-16 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 right-1/3 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
         
         <div className="w-full max-w-xl text-white relative z-10">
           <div className="space-y-10">
