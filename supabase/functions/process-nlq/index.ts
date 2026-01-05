@@ -13,14 +13,31 @@ function base64urlEncode(data: Uint8Array): string {
 }
 
 // Function to create JWT for Snowflake key-pair auth
-async function createSnowflakeJWT(account: string, user: string, privateKeyPem: string): Promise<string> {
+async function createSnowflakeJWT(account: string, user: string, privateKeyPem: string, publicKeyPem: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 3600; // 1 hour expiry
   
-  // Snowflake requires account in uppercase with region removed for the qualified username
-  const accountUpper = account.split('.')[0].toUpperCase();
+  // Extract account identifier (without region if using new format)
+  // Account format could be: ACCOUNT-ORG or ACCOUNT.region
+  const accountParts = account.toUpperCase().replace(/-/g, '_').split('.');
+  const accountId = accountParts[0];
   const userUpper = user.toUpperCase();
-  const qualifiedUsername = `${accountUpper}.${userUpper}`;
+  
+  // Calculate public key fingerprint (SHA256 of DER-encoded public key)
+  const pubKeyContents = publicKeyPem
+    .replace(/-----BEGIN PUBLIC KEY-----/g, '')
+    .replace(/-----END PUBLIC KEY-----/g, '')
+    .replace(/\s/g, '');
+  
+  const pubKeyDer = Uint8Array.from(atob(pubKeyContents), c => c.charCodeAt(0));
+  const hashBuffer = await crypto.subtle.digest('SHA-256', pubKeyDer);
+  const hashArray = new Uint8Array(hashBuffer);
+  const fingerprint = btoa(String.fromCharCode(...hashArray));
+  
+  // Qualified username format: ACCOUNT.USER.SHA256:FINGERPRINT
+  const qualifiedUsername = `${accountId}.${userUpper}.SHA256:${fingerprint}`;
+  
+  console.log('JWT issuer:', qualifiedUsername);
   
   const header = {
     alg: "RS256",
@@ -29,7 +46,7 @@ async function createSnowflakeJWT(account: string, user: string, privateKeyPem: 
   
   const payload = {
     iss: qualifiedUsername,
-    sub: qualifiedUsername,
+    sub: `${accountId}.${userUpper}`,
     iat: now,
     exp: exp
   };
