@@ -268,16 +268,17 @@ Rules:
             const SNOWFLAKE_ACCOUNT = Deno.env.get('SNOWFLAKE_ACCOUNT');
             const SNOWFLAKE_USER = Deno.env.get('SNOWFLAKE_USER');
             const SNOWFLAKE_PRIVATE_KEY = Deno.env.get('SNOWFLAKE_PRIVATE_KEY');
+            const SNOWFLAKE_PUBLIC_KEY = Deno.env.get('SNOWFLAKE_PUBLIC_KEY');
             const SNOWFLAKE_WAREHOUSE = Deno.env.get('SNOWFLAKE_WAREHOUSE');
 
-            if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PRIVATE_KEY) {
+            if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PRIVATE_KEY && SNOWFLAKE_PUBLIC_KEY) {
               console.log('Executing query against Snowflake SQL API with key-pair auth...');
               console.log('Account:', SNOWFLAKE_ACCOUNT);
               console.log('User:', SNOWFLAKE_USER);
               
               try {
                 // Create JWT token for authentication
-                const jwt = await createSnowflakeJWT(SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PRIVATE_KEY);
+                const jwt = await createSnowflakeJWT(SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PRIVATE_KEY, SNOWFLAKE_PUBLIC_KEY);
                 console.log('JWT created successfully');
                 
                 // Use Snowflake SQL API
@@ -382,6 +383,7 @@ Rules:
               console.log('Has account:', !!SNOWFLAKE_ACCOUNT);
               console.log('Has user:', !!SNOWFLAKE_USER);
               console.log('Has private key:', !!SNOWFLAKE_PRIVATE_KEY);
+              console.log('Has public key:', !!SNOWFLAKE_PUBLIC_KEY);
             }
           } catch (snowflakeError) {
             console.error('Snowflake error:', snowflakeError);
