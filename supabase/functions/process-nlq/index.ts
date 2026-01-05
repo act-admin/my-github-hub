@@ -193,68 +193,60 @@ Rules:
             const SNOWFLAKE_WAREHOUSE = Deno.env.get('SNOWFLAKE_WAREHOUSE');
 
             if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PASSWORD) {
-              console.log('Executing query against Snowflake...');
+              console.log('Executing query against Snowflake SQL API...');
               
-              const baseUrl = `https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com`;
+              // Use Snowflake SQL API v1/statements endpoint with Basic Auth
+              const sqlApiUrl = `https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com/api/v2/statements`;
+              const credentials = btoa(`${SNOWFLAKE_USER}:${SNOWFLAKE_PASSWORD}`);
               
-              // Try session-based authentication
-              const loginResponse = await fetch(`${baseUrl}/session/v1/login-request`, {
+              const queryPayload = {
+                statement: sqlQuery,
+                timeout: 60,
+                database: 'FINANCIAL_DEMO',
+                schema: 'PUBLIC',
+                warehouse: SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH',
+                role: 'ACCOUNTADMIN'
+              };
+
+              console.log('Snowflake request payload:', JSON.stringify(queryPayload));
+
+              const queryResponse = await fetch(sqlApiUrl, {
                 method: 'POST',
                 headers: {
+                  'Authorization': `Basic ${credentials}`,
                   'Content-Type': 'application/json',
                   'Accept': 'application/json',
+                  'X-Snowflake-Authorization-Token-Type': 'KEYPAIR_JWT',
                 },
-                body: JSON.stringify({
-                  data: {
-                    ACCOUNT_NAME: SNOWFLAKE_ACCOUNT,
-                    LOGIN_NAME: SNOWFLAKE_USER,
-                    PASSWORD: SNOWFLAKE_PASSWORD,
-                    CLIENT_APP_ID: 'SCODAC_NLQ',
-                    CLIENT_APP_VERSION: '1.0.0',
-                  },
-                }),
+                body: JSON.stringify(queryPayload),
               });
 
-              if (loginResponse.ok) {
-                const loginData = await loginResponse.json();
-                const sessionToken = loginData.data?.token;
-
-                if (sessionToken) {
-                  const queryResponse = await fetch(`${baseUrl}/queries/v1/query-request`, {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Snowflake Token="${sessionToken}"`,
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      sqlText: sqlQuery,
-                      asyncExec: false,
-                      sequenceId: 1,
-                    }),
+              console.log('Snowflake response status:', queryResponse.status);
+              
+              if (queryResponse.ok) {
+                const queryData = await queryResponse.json();
+                console.log('Snowflake response:', JSON.stringify(queryData).substring(0, 500));
+                
+                // Handle the SQL API response format
+                const resultSetMetaData = queryData.resultSetMetaData;
+                const columns = resultSetMetaData?.rowType?.map((col: any) => col.name) || [];
+                const rows = queryData.data || [];
+                
+                queryResults = rows.map((row: any[]) => {
+                  const obj: Record<string, any> = {};
+                  columns.forEach((col: string, idx: number) => {
+                    obj[col] = row[idx];
                   });
+                  return obj;
+                });
 
-                  if (queryResponse.ok) {
-                    const queryData = await queryResponse.json();
-                    const columns = queryData.data?.rowtype?.map((col: any) => col.name) || [];
-                    const rows = queryData.data?.rowset || [];
-                    
-                    queryResults = rows.map((row: any[]) => {
-                      const obj: Record<string, any> = {};
-                      columns.forEach((col: string, idx: number) => {
-                        obj[col] = row[idx];
-                      });
-                      return obj;
-                    });
-
-                    console.log(`Snowflake returned ${queryResults.length} rows`);
-                  } else {
-                    console.log('Snowflake query failed, using mock data');
-                  }
-                }
+                console.log(`Snowflake returned ${queryResults.length} rows`);
               } else {
-                console.log('Snowflake login failed, will generate summary without data');
+                const errorText = await queryResponse.text();
+                console.error('Snowflake query failed:', queryResponse.status, errorText);
               }
+            } else {
+              console.error('Missing Snowflake credentials');
             }
           } catch (snowflakeError) {
             console.error('Snowflake error:', snowflakeError);
