@@ -206,7 +206,7 @@ export default function PersonaSelection() {
     <div className="flex h-screen bg-background">
       {/* Left Sidebar - Expandable */}
       <aside
-        className={`${sidebarOpen ? "w-64" : "w-20"} bg-card border-r border-border flex flex-col ${sidebarOpen ? "items-start" : "items-center"} py-4 flex-shrink-0 transition-all duration-300 relative shadow-sm`}
+        className={`${sidebarOpen ? "w-64" : "w-20"} bg-sidebar border-r border-sidebar-border flex flex-col ${sidebarOpen ? "items-start" : "items-center"} py-3 flex-shrink-0 transition-all duration-300 relative`}
       >
         {/* Logo Icon */}
         <div
@@ -221,22 +221,22 @@ export default function PersonaSelection() {
         </div>
 
         {/* Home Icon */}
-        <div className={`mb-6 ${sidebarOpen ? "w-full px-4" : ""}`}>
+        <div className={`mb-8 ${sidebarOpen ? "w-full px-4" : ""}`}>
           <button
             onClick={() => {
               setSelectedPersona("generic");
               setActiveNavItem("");
             }}
-            className={`${sidebarOpen ? "w-full justify-start px-3" : "w-10 justify-center"} h-10 rounded-lg flex items-center gap-3 transition-all duration-200 ${
+            className={`${sidebarOpen ? "w-full justify-start px-3" : "w-10 justify-center"} h-10 rounded-lg flex items-center gap-3 transition-colors ${
               selectedPersona === "generic" && activeNavItem === ""
-                ? "bg-accent/10 text-accent font-medium"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "bg-blue-50 text-[#3B5998]"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}
             title="Home"
             data-testid="button-home"
           >
             <Home className="w-5 h-5 flex-shrink-0" />
-            {sidebarOpen && <span className="text-sm">Home</span>}
+            {sidebarOpen && <span className="text-sm font-medium">Home</span>}
           </button>
         </div>
 
@@ -255,18 +255,18 @@ export default function PersonaSelection() {
                   key={index}
                   onClick={() => setActiveNavItem(item.label)}
                   className={`${sidebarOpen ? "w-full justify-start px-3" : "w-10 justify-center"} 
-                              h-10 py-5 rounded-lg flex items-center gap-3 transition-all duration-200
+                              h-10 py-5 rounded-xl flex items-center gap-3 transition-colors 
                               ${
                                 isActive
-                                  ? "bg-accent/10 text-accent font-medium"
-                                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                  ? "bg-blue-50 text-[#3B5998] font-medium"
+                                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                               }`}
                   title={item.label}
                   data-testid={`sidebar-icon-${item.label.toLowerCase()}`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   {sidebarOpen && (
-                    <span className="text-sm text-start">
+                    <span className="text-sm text-start font-medium">
                       {item.fullLabel}
                     </span>
                   )}
@@ -334,16 +334,36 @@ export default function PersonaSelection() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-card border-b border-border px-8 py-5 flex items-center justify-between gap-6 flex-shrink-0 h-20">
+        <header className="bg-card border-b border-border px-8 py-4 flex items-center justify-between gap-6 flex-shrink-0 h-20">
           {/* Left Side - Billion Dollar Blank Screen */}
           <div className="flex items-center gap-3">
+            {/* <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer" onClick={() => setLocation("/")}>
+              <img
+                src={billionIcon}
+                alt="Billion Dollar Blank Screen"
+                className="w-full h-full object-cover"
+              />
+            </div> */}
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold text-heading tracking-tight">
+              <h1 className="text-lg font-bold text-foreground">
                 Billion $ Blank Screen
               </h1>
-              <p className="text-sm text-muted-foreground font-normal">
-                Your personal AI Assistant for work
-              </p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Your personal AI Assistant for work
+                </span>
+                {/* <span className="text-sm text-muted-foreground">
+                  {selectedPersona && selectedPersona !== "generic"
+                    ? `${personas.find(p => p.id === selectedPersona)?.name} Orchestration Platform`
+                    : "AI Orchestration Platform"}
+                </span>
+                {selectedPersona && (
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100 rounded-full">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-medium text-green-700">Active</span>
+                  </div>
+                )} */}
+              </div>
             </div>
           </div>
 
@@ -352,14 +372,14 @@ export default function PersonaSelection() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all font-medium flex items-center gap-2 shadow-sm"
+                  className="px-4 py-2 text-[#2E5AAC] border border-[#2E5AAC]/30 rounded-lg hover:bg-blue-50 transition-colors font-medium flex items-center gap-2"
                   data-testid="button-select-persona"
                 >
                   Role
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 shadow-lg border-border">
+              <DropdownMenuContent align="end" className="w-64">
                 {personas.map((persona) => {
                   const Icon = persona.icon;
                   const isSelected = selectedPersona === persona.id;
@@ -367,13 +387,13 @@ export default function PersonaSelection() {
                     <DropdownMenuItem
                       key={persona.id}
                       onClick={() => handleDropdownSelect(persona.id)}
-                      className="cursor-pointer py-2.5"
+                      className="cursor-pointer"
                       data-testid={`menu-item-${persona.id}`}
                     >
-                      <Icon className={`mr-2.5 h-4 w-4 ${persona.color}`} />
-                      <span className="flex-1 font-medium">{persona.name}</span>
+                      <Icon className={`mr-2 h-4 w-4 ${persona.color}`} />
+                      <span className="flex-1">{persona.name}</span>
                       {isSelected && (
-                        <div className="w-2 h-2 bg-success rounded-full animate-pulse ml-2"></div>
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse ml-2"></div>
                       )}
                     </DropdownMenuItem>
                   );
@@ -434,8 +454,8 @@ export default function PersonaSelection() {
         className={`fixed bottom-0 ${sidebarOpen ? "left-64" : "left-20"} right-0 bg-card border-t border-border py-3 z-40 transition-all duration-300`}
       >
         <div className="text-center">
-          <p className="text-xs text-muted-foreground font-normal tracking-normal">
-            2025 © SCODAC Inc. All Rights Reserved.
+          <p className="text-xs text-muted-foreground">
+            2025©SCODAC Inc All Rights Reserved.
           </p>
         </div>
       </div>

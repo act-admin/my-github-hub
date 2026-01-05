@@ -44,7 +44,6 @@ export default {
         success: "var(--success)",
         warning: "var(--warning)",
         info: "var(--info)",
-        heading: "hsl(var(--heading))",
         border: "var(--border)",
         input: "var(--input)",
         ring: "var(--ring)",
