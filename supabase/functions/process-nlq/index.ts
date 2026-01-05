@@ -17,10 +17,9 @@ async function createSnowflakeJWT(account: string, user: string, privateKeyPem: 
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 3600; // 1 hour expiry
   
-  // Extract account identifier (without region if using new format)
-  // Account format could be: ACCOUNT-ORG or ACCOUNT.region
-  const accountParts = account.toUpperCase().replace(/-/g, '_').split('.');
-  const accountId = accountParts[0];
+  // Account identifier should be uppercase and keep the hyphen for org-account format
+  // Format: ORGNAME-ACCOUNTNAME (e.g., GZZLCYX-DO72667)
+  const accountId = account.toUpperCase();
   const userUpper = user.toUpperCase();
   
   // Calculate public key fingerprint (SHA256 of DER-encoded public key)
@@ -34,10 +33,14 @@ async function createSnowflakeJWT(account: string, user: string, privateKeyPem: 
   const hashArray = new Uint8Array(hashBuffer);
   const fingerprint = btoa(String.fromCharCode(...hashArray));
   
-  // Qualified username format: ACCOUNT.USER.SHA256:FINGERPRINT
-  const qualifiedUsername = `${accountId}.${userUpper}.SHA256:${fingerprint}`;
+  // Format according to Snowflake docs:
+  // iss: ACCOUNT_IDENTIFIER.USER.SHA256:FINGERPRINT
+  // sub: ACCOUNT_IDENTIFIER.USER
+  const qualifiedUsername = `${accountId}.${userUpper}`;
+  const issuer = `${qualifiedUsername}.SHA256:${fingerprint}`;
   
-  console.log('JWT issuer:', qualifiedUsername);
+  console.log('JWT issuer:', issuer);
+  console.log('JWT subject:', qualifiedUsername);
   
   const header = {
     alg: "RS256",
@@ -45,8 +48,8 @@ async function createSnowflakeJWT(account: string, user: string, privateKeyPem: 
   };
   
   const payload = {
-    iss: qualifiedUsername,
-    sub: `${accountId}.${userUpper}`,
+    iss: issuer,
+    sub: qualifiedUsername,
     iat: now,
     exp: exp
   };
