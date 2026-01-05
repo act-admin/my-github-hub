@@ -6,6 +6,67 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Base64URL encode function
+function base64urlEncode(data: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...data));
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+// Function to create JWT for Snowflake key-pair auth
+async function createSnowflakeJWT(account: string, user: string, privateKeyPem: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const exp = now + 3600; // 1 hour expiry
+  
+  // Snowflake requires account in uppercase with region removed for the qualified username
+  const accountUpper = account.split('.')[0].toUpperCase();
+  const userUpper = user.toUpperCase();
+  const qualifiedUsername = `${accountUpper}.${userUpper}`;
+  
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+  
+  const payload = {
+    iss: qualifiedUsername,
+    sub: qualifiedUsername,
+    iat: now,
+    exp: exp
+  };
+  
+  const headerB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(header)));
+  const payloadB64 = base64urlEncode(new TextEncoder().encode(JSON.stringify(payload)));
+  const signingInput = `${headerB64}.${payloadB64}`;
+  
+  // Import the private key
+  const pemContents = privateKeyPem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
+    .replace(/-----END RSA PRIVATE KEY-----/g, '')
+    .replace(/\s/g, '');
+  
+  const binaryKey = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    "pkcs8",
+    binaryKey,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    cryptoKey,
+    new TextEncoder().encode(signingInput)
+  );
+  
+  const signatureB64 = base64urlEncode(new Uint8Array(signature));
+  
+  return `${signingInput}.${signatureB64}`;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -26,7 +87,6 @@ serve(async (req) => {
     
     // Detect query type for routing
     let message = '';
-    let systemPrompt = '';
     
     // Check for Power BI dashboard requests
     if (queryLower.includes('financial dashboard') || queryLower.includes('finance dashboard') || 
@@ -91,10 +151,6 @@ serve(async (req) => {
     const AZURE_OPENAI_API_KEY = Deno.env.get('AZURE_OPENAI_API_KEY');
     const AZURE_OPENAI_DEPLOYMENT_NAME = Deno.env.get('AZURE_OPENAI_DEPLOYMENT_NAME') || 'gpt-4o';
     const AZURE_OPENAI_API_VERSION = Deno.env.get('AZURE_OPENAI_API_VERSION') || '2024-02-01';
-    
-    // Get Snowflake config for context
-    const SNOWFLAKE_DATABASE = Deno.env.get('SNOWFLAKE_DATABASE') || 'financial_demo';
-    const SNOWFLAKE_SCHEMA = Deno.env.get('SNOWFLAKE_SCHEMA') || 'public';
 
     if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
       console.error('Azure OpenAI credentials not configured');
@@ -189,70 +245,44 @@ Rules:
         
         console.log('Generated SQL:', sqlQuery);
 
-        // Step 2: Execute SQL against Snowflake
+        // Step 2: Execute SQL against Snowflake using JWT key-pair auth
         if (sqlQuery) {
           try {
             const SNOWFLAKE_ACCOUNT = Deno.env.get('SNOWFLAKE_ACCOUNT');
             const SNOWFLAKE_USER = Deno.env.get('SNOWFLAKE_USER');
-            const SNOWFLAKE_PASSWORD = Deno.env.get('SNOWFLAKE_PASSWORD');
+            const SNOWFLAKE_PRIVATE_KEY = Deno.env.get('SNOWFLAKE_PRIVATE_KEY');
             const SNOWFLAKE_WAREHOUSE = Deno.env.get('SNOWFLAKE_WAREHOUSE');
 
-            if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PASSWORD) {
-              console.log('Executing query against Snowflake SQL API...');
+            if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PRIVATE_KEY) {
+              console.log('Executing query against Snowflake SQL API with key-pair auth...');
               console.log('Account:', SNOWFLAKE_ACCOUNT);
+              console.log('User:', SNOWFLAKE_USER);
               
-              // Use Snowflake SQL API with login token approach
-              const baseUrl = `https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com`;
-              
-              // First, get an authentication token
-              const loginUrl = `${baseUrl}/session/v1/login-request?warehouse=${SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH'}&databaseName=FINANCIAL_DEMO&schemaName=PUBLIC`;
-              
-              const loginPayload = {
-                data: {
-                  CLIENT_APP_ID: 'SCODAC_NLQ',
-                  CLIENT_APP_VERSION: '1.0.0',
-                  ACCOUNT_NAME: SNOWFLAKE_ACCOUNT,
-                  LOGIN_NAME: SNOWFLAKE_USER,
-                  PASSWORD: SNOWFLAKE_PASSWORD
-                }
-              };
-
-              console.log('Attempting Snowflake login...');
-              
-              const loginResponse = await fetch(loginUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Accept': 'application/json',
-                },
-                body: JSON.stringify(loginPayload),
-              });
-
-              console.log('Snowflake login response status:', loginResponse.status);
-              const loginData = await loginResponse.json();
-              console.log('Login response success:', loginData.success);
-              
-              if (loginData.success && loginData.data?.token) {
-                const sessionToken = loginData.data.token;
-                console.log('Got session token, executing query...');
+              try {
+                // Create JWT token for authentication
+                const jwt = await createSnowflakeJWT(SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PRIVATE_KEY);
+                console.log('JWT created successfully');
                 
-                const queryUrl = `${baseUrl}/queries/v1/query-request`;
-                const queryResponse = await fetch(queryUrl, {
+                // Use Snowflake SQL API
+                const baseUrl = `https://${SNOWFLAKE_ACCOUNT}.snowflakecomputing.com`;
+                const sqlApiEndpoint = `${baseUrl}/api/v2/statements`;
+                
+                console.log('Executing SQL via SQL API...');
+                
+                const queryResponse = await fetch(sqlApiEndpoint, {
                   method: 'POST',
                   headers: {
-                    'Authorization': `Snowflake Token="${sessionToken}"`,
+                    'Authorization': `Bearer ${jwt}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
+                    'X-Snowflake-Authorization-Token-Type': 'KEYPAIR_JWT'
                   },
                   body: JSON.stringify({
-                    sqlText: sqlQuery,
-                    asyncExec: false,
-                    sequenceId: 1,
-                    queryContextDTO: {
-                      database: 'FINANCIAL_DEMO',
-                      schema: 'PUBLIC',
-                      warehouse: SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH'
-                    }
+                    statement: sqlQuery,
+                    warehouse: SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH',
+                    database: 'FINANCIAL_DEMO',
+                    schema: 'PUBLIC',
+                    timeout: 60
                   }),
                 });
 
@@ -260,30 +290,81 @@ Rules:
                 
                 if (queryResponse.ok) {
                   const queryData = await queryResponse.json();
-                  console.log('Snowflake response:', JSON.stringify(queryData).substring(0, 500));
+                  console.log('Snowflake response received');
                   
-                  // Handle the Snowflake response format
-                  const columns = queryData.data?.rowtype?.map((col: any) => col.name) || [];
-                  const rows = queryData.data?.rowset || [];
-                  
-                  queryResults = rows.map((row: any[]) => {
-                    const obj: Record<string, any> = {};
-                    columns.forEach((col: string, idx: number) => {
-                      obj[col] = row[idx];
+                  // Handle the Snowflake SQL API response format
+                  if (queryData.data && Array.isArray(queryData.data)) {
+                    const columns = queryData.resultSetMetaData?.rowType?.map((col: any) => col.name) || [];
+                    queryResults = queryData.data.map((row: any[]) => {
+                      const obj: Record<string, any> = {};
+                      columns.forEach((col: string, idx: number) => {
+                        obj[col] = row[idx];
+                      });
+                      return obj;
                     });
-                    return obj;
-                  });
-
-                  console.log(`Snowflake returned ${queryResults.length} rows`);
+                    console.log(`Snowflake returned ${queryResults.length} rows`);
+                  } else if (queryData.statementHandle) {
+                    // Async query - need to poll for results
+                    console.log('Query submitted, statement handle:', queryData.statementHandle);
+                    
+                    // Poll for results
+                    const statusUrl = `${sqlApiEndpoint}/${queryData.statementHandle}`;
+                    let attempts = 0;
+                    const maxAttempts = 30;
+                    
+                    while (attempts < maxAttempts) {
+                      await new Promise(resolve => setTimeout(resolve, 1000));
+                      
+                      const statusResponse = await fetch(statusUrl, {
+                        method: 'GET',
+                        headers: {
+                          'Authorization': `Bearer ${jwt}`,
+                          'Accept': 'application/json',
+                          'X-Snowflake-Authorization-Token-Type': 'KEYPAIR_JWT'
+                        },
+                      });
+                      
+                      if (statusResponse.ok) {
+                        const statusData = await statusResponse.json();
+                        
+                        if (statusData.statementStatusUrl) {
+                          console.log('Query still running...');
+                          attempts++;
+                          continue;
+                        }
+                        
+                        if (statusData.data && Array.isArray(statusData.data)) {
+                          const columns = statusData.resultSetMetaData?.rowType?.map((col: any) => col.name) || [];
+                          queryResults = statusData.data.map((row: any[]) => {
+                            const obj: Record<string, any> = {};
+                            columns.forEach((col: string, idx: number) => {
+                              obj[col] = row[idx];
+                            });
+                            return obj;
+                          });
+                          console.log(`Snowflake returned ${queryResults.length} rows`);
+                          break;
+                        }
+                      } else {
+                        console.error('Status check failed:', statusResponse.status);
+                        break;
+                      }
+                      
+                      attempts++;
+                    }
+                  }
                 } else {
                   const errorText = await queryResponse.text();
                   console.error('Snowflake query failed:', queryResponse.status, errorText);
                 }
-              } else {
-                console.error('Snowflake login failed:', JSON.stringify(loginData).substring(0, 300));
+              } catch (jwtError) {
+                console.error('JWT/Query error:', jwtError);
               }
             } else {
-              console.error('Missing Snowflake credentials');
+              console.error('Missing Snowflake credentials for key-pair auth');
+              console.log('Has account:', !!SNOWFLAKE_ACCOUNT);
+              console.log('Has user:', !!SNOWFLAKE_USER);
+              console.log('Has private key:', !!SNOWFLAKE_PRIVATE_KEY);
             }
           } catch (snowflakeError) {
             console.error('Snowflake error:', snowflakeError);
