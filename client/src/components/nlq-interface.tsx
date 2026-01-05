@@ -630,8 +630,23 @@ const NLQInterface: React.FC<NLQInterfaceProps> = ({
         };
       }
 
-      // Make API call first to determine query type
-      const response = await apiRequest("POST", "/api/process-nlq", { query });
+      // Make API call to edge function
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/process-nlq`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+        body: JSON.stringify({ query }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
       const data = await response.json();
 
       // Initialize appropriate processing stages based on response type
