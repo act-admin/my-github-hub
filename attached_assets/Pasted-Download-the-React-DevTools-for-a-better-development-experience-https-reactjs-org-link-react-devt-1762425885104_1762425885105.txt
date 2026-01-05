@@ -1,0 +1,59 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+4
+MetricCard.tsx:32 Uncaught ReferenceError: React is not defined
+    at MetricCard (MetricCard.tsx:32:3)
+3
+ChartWidget.tsx:26 Uncaught ReferenceError: React is not defined
+    at ChartWidget (ChartWidget.tsx:26:3)
+4
+MetricCard.tsx:32 Uncaught ReferenceError: React is not defined
+    at MetricCard (MetricCard.tsx:32:3)
+3
+ChartWidget.tsx:26 Uncaught ReferenceError: React is not defined
+    at ChartWidget (ChartWidget.tsx:26:3)
+4
+chunk-R6S4VRB5.js?v=c37c11b6:14032 The above error occurred in the <MetricCard> component:
+
+    at MetricCard (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/components/dashboard/MetricCard.tsx:12:3)
+    at div
+    at div
+    at AutomationDashboard (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/dashboard/automation-dashboard.tsx:8:47)
+    at main
+    at div
+    at div
+    at PersonaSelection (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/persona-selection.tsx:150:27)
+    at Route (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:323:16)
+    at Router (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:291:17)
+    at div
+    at Provider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…unner/workspace/node_modules/.vite/deps/chunk-KWYMBLB3.js?v=c37c11b6:42:15)
+    at TooltipProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c37c11b6:52:5)
+    at QueryClientProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c37c11b6:2805:3)
+    at MsalProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…r/workspace/node_modules/.vite/deps/@azure_msal-react.js?v=c37c11b6:130:25)
+    at App (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/App.tsx:14:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+3
+chunk-R6S4VRB5.js?v=c37c11b6:14032 The above error occurred in the <ChartWidget> component:
+
+    at ChartWidget (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/components/dashboard/ChartWidget.tsx:5:3)
+    at div
+    at div
+    at AutomationDashboard (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/dashboard/automation-dashboard.tsx:8:47)
+    at main
+    at div
+    at div
+    at PersonaSelection (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/persona-selection.tsx:150:27)
+    at Route (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:323:16)
+    at Router (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:291:17)
+    at div
+    at Provider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…unner/workspace/node_modules/.vite/deps/chunk-KWYMBLB3.js?v=c37c11b6:42:15)
+    at TooltipProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c37c11b6:52:5)
+    at QueryClientProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c37c11b6:2805:3)
+    at MsalProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…r/workspace/node_modules/.vite/deps/@azure_msal-react.js?v=c37c11b6:130:25)
+    at App (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/App.tsx:14:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+chunk-R6S4VRB5.js?v=c37c11b6:9129 Uncaught ReferenceError: React is not defined
+    at MetricCard (MetricCard.tsx:32:3)

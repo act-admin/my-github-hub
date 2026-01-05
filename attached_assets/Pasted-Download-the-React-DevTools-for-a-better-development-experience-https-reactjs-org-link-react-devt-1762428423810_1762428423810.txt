@@ -1,0 +1,42 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+2automation-dashboard.tsx:37 Uncaught ReferenceError: React is not defined
+    at AutomationDashboard (automation-dashboard.tsx:37:5)
+    at renderWithHooks (chunk-R6S4VRB5.js?v=c37c11b6:11548:26)
+    at mountIndeterminateComponent (chunk-R6S4VRB5.js?v=c37c11b6:14926:21)
+    at beginWork (chunk-R6S4VRB5.js?v=c37c11b6:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-R6S4VRB5.js?v=c37c11b6:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-R6S4VRB5.js?v=c37c11b6:3699:24)
+    at invokeGuardedCallback (chunk-R6S4VRB5.js?v=c37c11b6:3733:39)
+    at beginWork$1 (chunk-R6S4VRB5.js?v=c37c11b6:19765:15)
+    at performUnitOfWork (chunk-R6S4VRB5.js?v=c37c11b6:19201:20)
+    at workLoopSync (chunk-R6S4VRB5.js?v=c37c11b6:19137:13)Understand this error
+chunk-R6S4VRB5.js?v=c37c11b6:14032 The above error occurred in the <AutomationDashboard> component:
+
+    at AutomationDashboard (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/dashboard/automation-dashboard.tsx:7:47)
+    at main
+    at div
+    at div
+    at PersonaSelection (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/persona-selection.tsx:150:27)
+    at Route (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:323:16)
+    at Router (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:291:17)
+    at div
+    at Provider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-KWYMBLB3.js?v=c37c11b6:42:15)
+    at TooltipProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c37c11b6:52:5)
+    at QueryClientProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c37c11b6:2805:3)
+    at MsalProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@azure_msal-react.js?v=c37c11b6:130:25)
+    at App (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/App.tsx:14:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-R6S4VRB5.js?v=c37c11b6:14032Understand this error
+chunk-R6S4VRB5.js?v=c37c11b6:9129 Uncaught ReferenceError: React is not defined
+    at AutomationDashboard (automation-dashboard.tsx:37:5)
+    at renderWithHooks (chunk-R6S4VRB5.js?v=c37c11b6:11548:26)
+    at mountIndeterminateComponent (chunk-R6S4VRB5.js?v=c37c11b6:14926:21)
+    at beginWork (chunk-R6S4VRB5.js?v=c37c11b6:15914:22)
+    at beginWork$1 (chunk-R6S4VRB5.js?v=c37c11b6:19753:22)
+    at performUnitOfWork (chunk-R6S4VRB5.js?v=c37c11b6:19201:20)
+    at workLoopSync (chunk-R6S4VRB5.js?v=c37c11b6:19137:13)
+    at renderRootSync (chunk-R6S4VRB5.js?v=c37c11b6:19116:15)
+    at recoverFromConcurrentError (chunk-R6S4VRB5.js?v=c37c11b6:18736:28)
+    at performSyncWorkOnRoot (chunk-R6S4VRB5.js?v=c37c11b6:18879:28)

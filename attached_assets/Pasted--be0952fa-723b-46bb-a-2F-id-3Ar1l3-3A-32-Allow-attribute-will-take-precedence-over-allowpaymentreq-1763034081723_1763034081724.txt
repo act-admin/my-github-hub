@@ -1,0 +1,29 @@
+
+be0952fa-723b-46bb-a…2F&id=%3Ar1l3%3A:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+client:536 WebSocket connection to 'wss://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev:24678/?token=HELFrWKTo8Pu' failed: 
+2
+admin.tsx:282 Uncaught ReferenceError: React is not defined
+    at Admin (admin.tsx:282:3)
+injected.js:27 The above error occurred in the <Admin> component:
+
+    at Admin (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/dashboard/admin.tsx:245:41)
+    at main
+    at div
+    at div
+    at PersonaSelection (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/pages/persona-selection.tsx:151:27)
+    at ProtectedRoute (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/App.tsx:13:38)
+    at Route (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:323:16)
+    at Router (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c37c11b6:291:17)
+    at div
+    at Provider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…unner/workspace/node_modules/.vite/deps/chunk-KWYMBLB3.js?v=c37c11b6:42:15)
+    at TooltipProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c37c11b6:52:5)
+    at QueryClientProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c37c11b6:2805:3)
+    at MsalProvider (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.d…r/workspace/node_modules/.vite/deps/@azure_msal-react.js?v=c37c11b6:130:25)
+    at App (https://be0952fa-723b-46bb-a1ff-3ebffee53e2b-00-21hmzu94pkphm.kirk.replit.dev/src/App.tsx:18:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+chunk-R6S4VRB5.js?v=c37c11b6:9129 Uncaught ReferenceError: React is not defined
+    at Admin (admin.tsx:282:3)
+﻿
+

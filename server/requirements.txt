@@ -1,0 +1,15 @@
+# Flask web framework
+Flask==2.3.3
+
+# Azure OpenAI and OpenAI
+openai==0.28.1
+
+# Snowflake connector
+snowflake-connector-python==3.7.0
+
+# Additional dependencies
+requests==2.31.0
+python-dotenv==1.0.0
+
+# Development and logging
+gunicorn==21.2.0
