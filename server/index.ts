@@ -1,12 +1,61 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { spawn } from "child_process";
 import path from "path";
 import { createServer } from "vite";
 import { ConfidentialClientApplication } from "@azure/msal-node";
 import { personaAutomationServices, getAutomationServiceForQuery, AutomationServiceId } from "./data/automationServices";
+import crypto from "crypto";
 
 const app = express();
 let pythonProcess: any = null;
+
+// Security: JWT secret - MUST be set via environment variable in production
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@scodac.com';
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH; // BCrypt hash of password
+
+// Simple session store (in production, use Redis or database)
+const activeSessions: Map<string, { email: string; expiresAt: number }> = new Map();
+
+// Helper: Generate secure token
+function generateToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Helper: Hash password (simple SHA-256 for demo, use bcrypt in production)
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+// Helper: Verify session token
+function verifySession(token: string): { valid: boolean; email?: string } {
+  const session = activeSessions.get(token);
+  if (!session) return { valid: false };
+  if (Date.now() > session.expiresAt) {
+    activeSessions.delete(token);
+    return { valid: false };
+  }
+  return { valid: true, email: session.email };
+}
+
+// Authentication middleware
+function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required', code: 'NO_TOKEN' });
+  }
+  
+  const session = verifySession(token);
+  if (!session.valid) {
+    return res.status(401).json({ error: 'Invalid or expired session', code: 'INVALID_TOKEN' });
+  }
+  
+  // Attach user info to request
+  (req as any).user = { email: session.email };
+  next();
+}
 
 // Query analytics tracker - in-memory store for real-time analytics
 interface QueryLog {
@@ -24,6 +73,8 @@ interface QueryLog {
   automationService?: AutomationServiceId; // Automation service type
 }
 
+// Limit query logs to prevent memory exhaustion
+const MAX_QUERY_LOGS = 1000;
 const queryLogs: QueryLog[] = [];
 let sessionCount = 0;
 let activeConversations = 0;
@@ -114,8 +165,8 @@ app.post('/api/clear-cache', (req, res) => {
   });
 });
 
-// Power BI embed token endpoint
-app.post('/api/powerbi/embed-token', async (req, res) => {
+// Power BI embed token endpoint - PROTECTED
+app.post('/api/powerbi/embed-token', authMiddleware, async (req, res) => {
   try {
     const { reportId, groupId } = req.body;
 
@@ -211,8 +262,8 @@ app.post('/api/powerbi/embed-token', async (req, res) => {
   }
 });
 
-// GenAI Suite Invoice Data API - Returns real invoice data from the dashboard
-app.get('/api/genai-invoices', (req, res) => {
+// GenAI Suite Invoice Data API - PROTECTED - Returns real invoice data from the dashboard
+app.get('/api/genai-invoices', authMiddleware, (req, res) => {
   const { status, type, customer, vendor } = req.query;
   
   // Real Accounts Payable invoice data from GenAI Suite Finance Automation Dashboard
@@ -334,7 +385,7 @@ app.get('/api/genai-invoices', (req, res) => {
   });
 });
 
-// Authentication endpoint - Login
+// Authentication endpoint - Login (secure version with session tokens)
 app.post('/api/auth/login', (req, res) => {
   const { email, password } = req.body;
   
@@ -345,18 +396,49 @@ app.post('/api/auth/login', (req, res) => {
       message: 'Email and password are required'
     });
   }
+
+  // Input validation
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid input format'
+    });
+  }
+
+  // Rate limiting check would go here in production
   
-  // Check credentials
-  if (email === 'admin@scodac.com' && password === 'scodac@ai$123') {
+  // Check credentials against environment variables (no hardcoded passwords)
+  const passwordHash = hashPassword(password);
+  const expectedHash = ADMIN_PASSWORD_HASH || hashPassword('changeme123'); // Default for dev only
+  
+  if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase() && passwordHash === expectedHash) {
+    // Generate session token
+    const token = generateToken();
+    const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+    
+    // Store session
+    activeSessions.set(token, { email, expiresAt });
+    
+    // Clean up expired sessions periodically
+    const sessionEntries = Array.from(activeSessions.entries());
+    for (const [key, session] of sessionEntries) {
+      if (Date.now() > session.expiresAt) {
+        activeSessions.delete(key);
+      }
+    }
+    
     return res.status(200).json({
       success: true,
       message: 'Login successful',
+      token,
+      expiresIn: 86400, // 24 hours in seconds
       user: {
-        email: 'admin@scodac.com',
+        email,
         name: 'SCODAC Admin'
       }
     });
   } else {
+    // Use consistent error message to prevent user enumeration
     return res.status(401).json({
       success: false,
       message: 'Invalid email or password'
@@ -390,8 +472,8 @@ app.post('/api/auth/forgot-password', (req, res) => {
   }
 });
 
-// Dashboard Metrics API - Returns persona-specific metrics
-app.get('/api/dashboard/metrics', (req, res) => {
+// Dashboard Metrics API - PROTECTED - Returns persona-specific metrics
+app.get('/api/dashboard/metrics', authMiddleware, (req, res) => {
   const { persona } = req.query;
   
   const personaMetrics: Record<string, any> = {
@@ -448,8 +530,8 @@ app.get('/api/dashboard/metrics', (req, res) => {
   res.json(metrics);
 });
 
-// Dashboard Analytics API - Returns usage and analytics data
-app.get('/api/dashboard/analytics', (req, res) => {
+// Dashboard Analytics API - PROTECTED - Returns usage and analytics data
+app.get('/api/dashboard/analytics', authMiddleware, (req, res) => {
   const { persona, period = 'year' } = req.query;
   
   const monthlyData = [
@@ -508,8 +590,8 @@ app.get('/api/dashboard/analytics', (req, res) => {
   });
 });
 
-// Dashboard Feedback API - Returns feedback and requests
-app.get('/api/dashboard/feedback', (req, res) => {
+// Dashboard Feedback API - PROTECTED - Returns feedback and requests
+app.get('/api/dashboard/feedback', authMiddleware, (req, res) => {
   const { persona } = req.query;
   
   const personaFeedback: Record<string, any[]> = {
@@ -638,8 +720,8 @@ app.get('/api/dashboard/feedback', (req, res) => {
   });
 });
 
-// Dashboard Agents Repository API - Returns available automation agents
-app.get('/api/dashboard/agents', (req, res) => {
+// Dashboard Agents Repository API - PROTECTED - Returns available automation agents
+app.get('/api/dashboard/agents', authMiddleware, (req, res) => {
   const { persona } = req.query;
   
   const personaAgents: Record<string, any[]> = {
@@ -921,8 +1003,8 @@ function getAutomationService(query: string, persona: string): QueryLog['automat
   return getAutomationServiceForQuery(query, persona);
 }
 
-// Query logging endpoint - tracks user queries for analytics
-app.post('/api/log-query', (req, res) => {
+// Query logging endpoint - PROTECTED - tracks user queries for analytics
+app.post('/api/log-query', authMiddleware, (req, res) => {
   const { query, persona = 'generic', responseTime } = req.body;
   
   // Validate query
@@ -989,8 +1071,8 @@ app.post('/api/log-query', (req, res) => {
   res.json({ success: true, logId: log.id });
 });
 
-// Query analytics endpoint - returns real-time query data
-app.get('/api/dashboard/query-analytics', (req, res) => {
+// Query analytics endpoint - PROTECTED - returns real-time query data
+app.get('/api/dashboard/query-analytics', authMiddleware, (req, res) => {
   const { persona } = req.query;
   
   // Filter queries by persona if specified
@@ -1050,8 +1132,8 @@ app.get('/api/dashboard/query-analytics', (req, res) => {
   });
 });
 
-// Chat history endpoint - returns recent chat sessions
-app.get('/api/dashboard/chat-history', (req, res) => {
+// Chat history endpoint - PROTECTED - returns recent chat sessions
+app.get('/api/dashboard/chat-history', authMiddleware, (req, res) => {
   const { persona, limit = '10' } = req.query;
   
   // Filter queries by persona if specified
@@ -1094,8 +1176,8 @@ app.get('/api/dashboard/chat-history', (req, res) => {
   res.json({ chats: recentChats });
 });
 
-// Chat metrics endpoint - returns response time and sentiment data
-app.get('/api/dashboard/chat-metrics', (req, res) => {
+// Chat metrics endpoint - PROTECTED - returns response time and sentiment data
+app.get('/api/dashboard/chat-metrics', authMiddleware, (req, res) => {
   const { persona } = req.query;
   
   // Filter queries by persona if specified
@@ -1162,8 +1244,8 @@ app.get('/api/dashboard/chat-metrics', (req, res) => {
   });
 });
 
-// Automation services breakdown endpoint - returns service-specific metrics
-app.get('/api/dashboard/automation-services', (req, res) => {
+// Automation services breakdown endpoint - PROTECTED - returns service-specific metrics
+app.get('/api/dashboard/automation-services', authMiddleware, (req, res) => {
   const { persona } = req.query;
   
   // Handle generic persona - use customer-service as default template

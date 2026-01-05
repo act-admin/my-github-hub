@@ -276,7 +276,49 @@ Rules:
         // Clean up SQL if it has markdown
         sqlQuery = sqlQuery.replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
         
-        console.log('Generated SQL:', sqlQuery);
+        console.log('Generated SQL (validating...)');
+
+        // SECURITY: Validate the generated SQL before execution
+        const sqlUpper = sqlQuery.toUpperCase().trim();
+        
+        // 1. Only allow SELECT statements
+        if (!sqlUpper.startsWith('SELECT')) {
+          console.error('SQL validation failed: Only SELECT queries allowed');
+          sqlQuery = ''; // Clear invalid query
+        }
+        
+        // 2. Block dangerous operations
+        const dangerousKeywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE', 'EXEC', 'EXECUTE', 'GRANT', 'REVOKE'];
+        for (const keyword of dangerousKeywords) {
+          const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+          if (regex.test(sqlQuery)) {
+            console.error(`SQL validation failed: ${keyword} operation blocked`);
+            sqlQuery = '';
+            break;
+          }
+        }
+        
+        // 3. Enforce table whitelist
+        const allowedTables = ['FINANCIAL_TRANSACTIONS', 'FINANCIAL_REPORTS', 'MEDICAL_RECORDS', 'MEDICAL_REPORTS'];
+        if (sqlQuery && !allowedTables.some(table => sqlUpper.includes(table))) {
+          console.error('SQL validation failed: Query must use approved tables');
+          sqlQuery = '';
+        }
+        
+        // 4. Block SQL injection patterns
+        const injectionPatterns = [/--/, /\/\*/, /;\s*SELECT/i, /\bOR\s+1\s*=\s*1/i, /\bAND\s+1\s*=\s*1/i];
+        for (const pattern of injectionPatterns) {
+          if (pattern.test(sqlQuery)) {
+            console.error('SQL validation failed: Injection pattern detected');
+            sqlQuery = '';
+            break;
+          }
+        }
+        
+        // 5. Add LIMIT if missing
+        if (sqlQuery && !sqlUpper.includes('LIMIT')) {
+          sqlQuery = sqlQuery.replace(/;?\s*$/, ' LIMIT 100');
+        }
 
         // Step 2: Execute SQL against Snowflake using JWT key-pair auth
         if (sqlQuery) {
@@ -289,8 +331,7 @@ Rules:
 
             if (SNOWFLAKE_ACCOUNT && SNOWFLAKE_USER && SNOWFLAKE_PRIVATE_KEY && SNOWFLAKE_PUBLIC_KEY) {
               console.log('Executing query against Snowflake SQL API with key-pair auth...');
-              console.log('Account:', SNOWFLAKE_ACCOUNT);
-              console.log('User:', SNOWFLAKE_USER);
+              // Don't log sensitive credentials
               
               try {
                 // Create JWT token for authentication
