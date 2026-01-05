@@ -164,7 +164,9 @@ const sidebarNavItems = [
 
 export default function PersonaSelection() {
   const [, setLocation] = useLocation();
-  const [selectedPersona, setSelectedPersona] = useState<string | null>("generic");
+  const [selectedPersona, setSelectedPersona] = useState<string | null>(
+    "generic",
+  );
   const [activeNavItem, setActiveNavItem] = useState<string>("");
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -207,7 +209,9 @@ export default function PersonaSelection() {
         className={`${sidebarOpen ? "w-64" : "w-20"} bg-card border-r border-border flex flex-col ${sidebarOpen ? "items-start" : "items-center"} py-4 flex-shrink-0 transition-all duration-300 relative shadow-sm`}
       >
         {/* Logo Icon */}
-        <div className={`h-20 flex items-center ${sidebarOpen ? "px-4 w-full" : "justify-center"} -mt-2`}>
+        <div
+          className={`h-20 flex items-center ${sidebarOpen ? "px-4 w-full" : "justify-center"} -mt-2`}
+        >
           <img
             src={sidebarOpen ? scodacLogo : scodacIcon}
             alt="SCODAC"
@@ -237,7 +241,9 @@ export default function PersonaSelection() {
         </div>
 
         {/* Navigation Icons */}
-        <nav className={`flex-1 flex flex-col ${sidebarOpen ? "w-full px-4" : "items-center"} space-y-2`}>
+        <nav
+          className={`flex-1 flex flex-col ${sidebarOpen ? "w-full px-4" : "items-center"} space-y-2`}
+        >
           {sidebarNavItems
             .filter((item) => item.label !== "User")
             .map((item, index) => {
@@ -259,7 +265,11 @@ export default function PersonaSelection() {
                   data-testid={`sidebar-icon-${item.label.toLowerCase()}`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
-                  {sidebarOpen && <span className="text-sm text-start">{item.fullLabel}</span>}
+                  {sidebarOpen && (
+                    <span className="text-sm text-start">
+                      {item.fullLabel}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -292,7 +302,7 @@ export default function PersonaSelection() {
               setHoverTimeout(null);
             }
           }}
-          className="absolute -right-3 top-6 w-6 h-8 bg-white border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition-all z-10"
+          className="absolute -right-3 top-6 w-6 h-8 bg-white border border-border rounded-r-lg flex items-center justify-center shadow-sm hover:bg-gray-50 transition-all z-10"
           title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
           data-testid="button-sidebar-toggle"
         >
@@ -328,8 +338,12 @@ export default function PersonaSelection() {
           {/* Left Side - Billion Dollar Blank Screen */}
           <div className="flex items-center gap-3">
             <div className="flex flex-col">
-              <h1 className="text-xl font-bold text-heading tracking-tight">Billion $ Blank Screen</h1>
-              <p className="text-sm text-muted-foreground font-normal">Your personal AI Assistant for work</p>
+              <h1 className="text-xl font-bold text-heading tracking-tight">
+                Billion $ Blank Screen
+              </h1>
+              <p className="text-sm text-muted-foreground font-normal">
+                Your personal AI Assistant for work
+              </p>
             </div>
           </div>
 
@@ -358,7 +372,9 @@ export default function PersonaSelection() {
                     >
                       <Icon className={`mr-2.5 h-4 w-4 ${persona.color}`} />
                       <span className="flex-1 font-medium">{persona.name}</span>
-                      {isSelected && <div className="w-2 h-2 bg-success rounded-full animate-pulse ml-2"></div>}
+                      {isSelected && (
+                        <div className="w-2 h-2 bg-success rounded-full animate-pulse ml-2"></div>
+                      )}
                     </DropdownMenuItem>
                   );
                 })}
@@ -377,18 +393,36 @@ export default function PersonaSelection() {
               showFooter={true}
             />
           )}
-          {activeNavItem === "Dashboard" && <AutomationDashboard persona={selectedPersona || "generic"} />}
-          {activeNavItem === "Analytics" && <Analytics persona={selectedPersona || "generic"} />}
-          {activeNavItem === "Feedback" && <Feedback persona={selectedPersona || "generic"} />}
-          {activeNavItem === "Data Feedback" && <DataFeedback persona={selectedPersona || "generic"} />}
-          {activeNavItem === "Repository" && <Agents persona={selectedPersona || "generic"} />}
+          {activeNavItem === "Dashboard" && (
+            <AutomationDashboard persona={selectedPersona || "generic"} />
+          )}
+          {activeNavItem === "Analytics" && (
+            <Analytics persona={selectedPersona || "generic"} />
+          )}
+          {activeNavItem === "Feedback" && (
+            <Feedback persona={selectedPersona || "generic"} />
+          )}
+          {activeNavItem === "Data Feedback" && (
+            <DataFeedback persona={selectedPersona || "generic"} />
+          )}
+          {activeNavItem === "Repository" && (
+            <Agents persona={selectedPersona || "generic"} />
+          )}
           {activeNavItem === "Admin" && <Admin />}
           {activeNavItem &&
-            !["Dashboard", "Analytics", "Feedback", "Data Feedback", "Repository", "Admin", ""].includes(
-              activeNavItem,
-            ) && (
+            ![
+              "Dashboard",
+              "Analytics",
+              "Feedback",
+              "Data Feedback",
+              "Repository",
+              "Admin",
+              "",
+            ].includes(activeNavItem) && (
               <div className="p-8" data-testid="page-coming-soon">
-                <h1 className="text-3xl font-bold text-foreground mb-2">{activeNavItem}</h1>
+                <h1 className="text-3xl font-bold text-foreground mb-2">
+                  {activeNavItem}
+                </h1>
                 <p className="text-muted-foreground">Coming soon...</p>
               </div>
             )}
