@@ -206,18 +206,26 @@ Database: FINANCIAL_DEMO
 Schema: PUBLIC
 
 Tables available:
-- FINANCIAL_REPORTS - Contains financial report data (reports, summaries, financial statements)
-- FINANCIAL_TRANSACTIONS - Contains all financial transactions (transaction records, amounts, dates, types)
-- MEDICAL_RECORDS - Contains patient medical records (patient data, treatments, diagnoses)
-- MEDICAL_REPORTS - Contains medical reports and analytics (healthcare metrics, outcomes)
+
+MEDICAL_RECORDS - Contains patient medical records:
+  - PATIENT_ID (NUMBER) - Unique patient identifier
+  - VISIT_DATE (DATE) - Date of the visit/treatment
+  - DIAGNOSIS (VARCHAR) - Medical diagnosis (e.g., 'Asthma', 'Arthritis', 'Diabetes')
+  - TREATMENT_COST (NUMBER) - Cost of the treatment
+  - NOTES (VARCHAR) - Additional notes
+
+FINANCIAL_TRANSACTIONS - Contains financial transaction data
+FINANCIAL_REPORTS - Contains financial report data
+MEDICAL_REPORTS - Contains medical reports and analytics
 
 When generating SQL:
 - Use proper Snowflake SQL syntax
 - Always use fully qualified table names: FINANCIAL_DEMO.PUBLIC.TABLE_NAME
+- Use the correct column names as specified above
 - Limit results to 100 rows unless user specifies otherwise
 - Use appropriate aggregations and groupings
-- Format dates properly
-- Use SELECT * to explore table structure if unsure about columns
+- For date filtering use VISIT_DATE column
+- For costs use TREATMENT_COST column
 `;
 
     let sqlQuery = '';
