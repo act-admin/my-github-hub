@@ -33,16 +33,22 @@ export default function PowerBIEmbedServerToken({
       try {
         console.log("PowerBI: Fetching embed token from server...");
         
-        const response = await fetch("/api/powerbi/embed-token", {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/powerbi-embed-token`, {
           method: "POST",
           body: JSON.stringify({ reportId, groupId }),
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseKey}`,
           },
         });
 
         if (!response.ok) {
-          throw new Error("Failed to fetch embed token");
+          const errorData = await response.json().catch(() => ({}));
+          console.error("PowerBI: API error:", errorData);
+          throw new Error(errorData.error || "Failed to fetch embed token");
         }
 
         const data = await response.json();
